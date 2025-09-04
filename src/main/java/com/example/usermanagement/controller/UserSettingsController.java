@@ -1,11 +1,9 @@
-// src/main/java/com/example/usermanagement/controller/UserSettingsController.java
-
 package com.example.usermanagement.controller;
 
-
-import com.example.usermanagement.entity.UserSettings;
+import com.example.usermanagement.dto.UpdateUserSettingsDTO;
+import com.example.usermanagement.dto.UserSettingsResponseDTO;
 import com.example.usermanagement.service.UserSettingsService;
-import org.springframework.beans.factory.annotation.Autowired;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,20 +12,23 @@ import org.springframework.web.bind.annotation.*;
 @CrossOrigin(origins = "*")
 public class UserSettingsController {
 
-    @Autowired
-    private UserSettingsService userSettingsService;
+    private final UserSettingsService userSettingsService;
+
+    public UserSettingsController(UserSettingsService userSettingsService) {
+        this.userSettingsService = userSettingsService;
+    }
 
     @GetMapping("/user/{userId}")
-    public ResponseEntity<UserSettings> getUserSettings(@PathVariable Long userId) {
+    public ResponseEntity<UserSettingsResponseDTO> getUserSettings(@PathVariable Long userId) {
         return userSettingsService.getUserSettings(userId)
                 .map(settings -> ResponseEntity.ok(settings))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @PutMapping
-    public ResponseEntity<UserSettings> updateUserSettings(@RequestBody UserSettings settings) {
+    public ResponseEntity<UserSettingsResponseDTO> updateUserSettings(@Valid @RequestBody UpdateUserSettingsDTO updateUserSettingsDTO) {
         try {
-            UserSettings updatedSettings = userSettingsService.updateUserSettings(settings);
+            UserSettingsResponseDTO updatedSettings = userSettingsService.updateUserSettings(updateUserSettingsDTO);
             return ResponseEntity.ok(updatedSettings);
         } catch (RuntimeException e) {
             return ResponseEntity.notFound().build();

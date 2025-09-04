@@ -1,13 +1,11 @@
-// src/main/java/com/example/usermanagement/service/UserService.java
-
 package com.example.usermanagement.service;
 
-
+import com.example.usermanagement.dto.*;
 import com.example.usermanagement.entity.User;
 import com.example.usermanagement.entity.UserSettings;
+import com.example.usermanagement.mapper.UserMapper;
 import com.example.usermanagement.repository.UserRepository;
 import com.example.usermanagement.repository.UserSettingsRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -21,57 +19,60 @@ import java.util.Optional;
 @Transactional
 public class UserService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final UserSettingsRepository userSettingsRepository;
+    private final UserMapper userMapper;
 
-    @Autowired
-    private UserSettingsRepository userSettingsRepository;
+    public UserService(UserRepository userRepository,
+                       UserSettingsRepository userSettingsRepository,
+                       UserMapper userMapper) {
+        this.userRepository = userRepository;
+        this.userSettingsRepository = userSettingsRepository;
+        this.userMapper = userMapper;
+    }
 
     @Cacheable(value = "users")
-    public List<User> getAllUsers() {
-        return userRepository.findAllActive();
+    public List<UserResponseDTO> getAllUsers() {
+        List<User> users = userRepository.findAllActive();
+        return userMapper.toResponseDTOList(users);
     }
 
     @Cacheable(value = "user", key = "#id")
-    public Optional<User> getUserById(Long id) {
-        return userRepository.findById(id);
+    public Optional<UserResponseDTO> getUserById(Long id) {
+        return userRepository.findById(id)
+                .map(userMapper::toResponseDTO);
     }
 
-    public Optional<User> getUserByEmail(String email) {
-        return userRepository.findByEmail(email);
+    public Optional<UserResponseDTO> getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(userMapper::toResponseDTO);
     }
 
     @CacheEvict(value = {"users", "user"}, allEntries = true)
-    public User createUser(User user) {
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new RuntimeException("User with email " + user.getEmail() + " already exists");
+    public UserResponseDTO createUser(CreateUserDTO createUserDTO) {
+        if (userRepository.existsByEmail(createUserDTO.getEmail())) {
+            throw new RuntimeException("User with email " + createUserDTO.getEmail() + " already exists");
         }
 
+        User user = userMapper.toEntity(createUserDTO);
         User savedUser = userRepository.save(user);
 
         // Create default user settings
         UserSettings settings = new UserSettings(savedUser.getId());
         userSettingsRepository.save(settings);
 
-        return savedUser;
+        return userMapper.toResponseDTO(savedUser);
     }
 
     @CacheEvict(value = {"users", "user"}, allEntries = true)
-    public User updateUser(Long id, User userDetails) {
+    public UserResponseDTO updateUser(Long id, UpdateUserDTO updateUserDTO) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
 
-        user.setFirstName(userDetails.getFirstName());
-        user.setLastName(userDetails.getLastName());
-        user.setEmail(userDetails.getEmail());
-        user.setDob(userDetails.getDob());
-        user.setPhoneCountryCode(userDetails.getPhoneCountryCode());
-        user.setPhoneNumber(userDetails.getPhoneNumber());
-        user.setProfilePic(userDetails.getProfilePic());
-        user.setEmailVerified(userDetails.getEmailVerified());
-        user.setPhoneVerified(userDetails.getPhoneVerified());
+        userMapper.updateEntityFromDTO(updateUserDTO, user);
+        User updatedUser = userRepository.save(user);
 
-        return userRepository.save(user);
+        return userMapper.toResponseDTO(updatedUser);
     }
 
     @CacheEvict(value = {"users", "user"}, allEntries = true)

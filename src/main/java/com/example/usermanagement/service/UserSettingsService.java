@@ -1,11 +1,10 @@
-// src/main/java/com/example/usermanagement/service/UserSettingsService.java
-
 package com.example.usermanagement.service;
 
-
+import com.example.usermanagement.dto.UpdateUserSettingsDTO;
+import com.example.usermanagement.dto.UserSettingsResponseDTO;
 import com.example.usermanagement.entity.UserSettings;
+import com.example.usermanagement.mapper.UserMapper;
 import com.example.usermanagement.repository.UserSettingsRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -17,24 +16,30 @@ import java.util.Optional;
 @Transactional
 public class UserSettingsService {
 
-    @Autowired
-    private UserSettingsRepository userSettingsRepository;
+    private final UserSettingsRepository userSettingsRepository;
+    private final UserMapper userMapper;
 
-    @Cacheable(value = "userSettings", key = "#userId")
-    public Optional<UserSettings> getUserSettings(Long userId) {
-        return userSettingsRepository.findByUserId(userId);
+    public UserSettingsService(UserSettingsRepository userSettingsRepository,
+                               UserMapper userMapper) {
+        this.userSettingsRepository = userSettingsRepository;
+        this.userMapper = userMapper;
     }
 
-    @CacheEvict(value = "userSettings", key = "#settings.userId")
-    public UserSettings updateUserSettings(UserSettings settings) {
-        UserSettings existing = userSettingsRepository.findByUserId(settings.getUserId())
-                .orElseThrow(() -> new RuntimeException("User settings not found for user: " + settings.getUserId()));
+    @Cacheable(value = "userSettings", key = "#userId")
+    public Optional<UserSettingsResponseDTO> getUserSettings(Long userId) {
+        return userSettingsRepository.findByUserId(userId)
+                .map(userMapper::toUserSettingsResponseDTO);
+    }
 
-        existing.setNotificationEnabled(settings.getNotificationEnabled());
-        existing.setTheme(settings.getTheme());
-        existing.setLanguage(settings.getLanguage());
+    @CacheEvict(value = "userSettings", key = "#updateUserSettingsDTO.userId")
+    public UserSettingsResponseDTO updateUserSettings(UpdateUserSettingsDTO updateUserSettingsDTO) {
+        UserSettings existing = userSettingsRepository.findByUserId(updateUserSettingsDTO.getUserId())
+                .orElseThrow(() -> new RuntimeException("User settings not found for user: " + updateUserSettingsDTO.getUserId()));
 
-        return userSettingsRepository.save(existing);
+        userMapper.updateUserSettingsFromDTO(updateUserSettingsDTO, existing);
+        UserSettings updated = userSettingsRepository.save(existing);
+
+        return userMapper.toUserSettingsResponseDTO(updated);
     }
 
     @CacheEvict(value = "userSettings", key = "#userId")
