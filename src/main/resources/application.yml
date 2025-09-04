@@ -1,0 +1,35 @@
+## src/main/resources/application.yml
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/user_management
+    username: postgres
+    password: rehan2003
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 60000ms
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000
+
+server:
+  port: 8081
+
+logging:
+  level:
+    com.example: DEBUG

@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: user_management_postgres
+    environment:
+      POSTGRES_DB: user_management
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: rehan2003
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: user_management_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - app_network
+
+  # Your Spring Boot Application
+  app:
+    build: .
+    container_name: user_management_app
+    ports:
+      - "8081:8081"  # Using your port 8081
+    environment:
+      # Override database connection to use container names
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/user_management
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: rehan2003
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - app_network
+
+volumes:
+  postgres_data:
+
+networks:
+  app_network:
+    driver: bridge
